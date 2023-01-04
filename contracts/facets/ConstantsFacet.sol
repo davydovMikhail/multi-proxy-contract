@@ -25,7 +25,7 @@ contract ConstantsFacet {
         return ds.admin;
     }
 
-    function transferOwnership(address _newAdmin) external {
+    function transferAdminship(address _newAdmin) external {
         LibConstants.enforceIsTokenAdmin();
         LibConstants.setTokenAdmin(_newAdmin);
     } 
