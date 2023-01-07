@@ -1,14 +1,13 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import { BigNumber } from "ethers";
 import * as mocha from "mocha-steps";
 import { parseEther } from '@ethersproject/units';
 import { DiamondInit, DiamondCutFacet, DiamondLoupeFacet,
      OwnershipFacet, ConstantsFacet, BalancesFacet,
      AllowancesFacet, SupplyRegulatorFacet } from '../typechain-types';
 import { assert } from 'chai';
-import { getSelectors } from "../scripts/libraries/diamond.js";
+import { getSelectors } from "../scripts/libraries/diamond";
 
 describe("Diamond Global Test", async () => {
     let diamondCutFacet: DiamondCutFacet;
@@ -50,22 +49,15 @@ describe("Diamond Global Test", async () => {
         Remove
     }
 
-    // let addressDiamondInit: string;
     let calldataAfterDeploy: string;
     let addressDiamond: string;
 
     let facetToAddressImplementation: FacetToAddress = {};
-    // let facetAddresses = {
-
-    // }
-
-    mocha.step("Деплой контракта который инициализирует значения переменных для функций name(), symbol() и т. д. во время деплоя Diamond", async function() {
-        const DiamondInit = await ethers.getContractFactory('DiamondInit');
-        diamondInit = await DiamondInit.deploy();
-        await diamondInit.deployed();
-    });
 
     let facetCuts: FacetCut[] = [];
+
+    // обслуживающие грани и сам Diamond
+
     const FacetNames = [
         'DiamondCutFacet',
         'DiamondLoupeFacet',
@@ -85,21 +77,11 @@ describe("Diamond Global Test", async () => {
         };
     });
     
-    mocha.step("Формирование calldata, которая будет вызвана из Diamond через delegatecall для инициализации переменных, во время деплоя Diamond", async function () {
-        calldataAfterDeploy = diamondInit.interface.encodeFunctionData('initERC20', [
-            name,
-            symbol,
-            decimals,
-            admin.address,
-            totalSupply
-        ]);
-    });
-
     mocha.step("Деплой контракта Diamond", async function () {
         const diamondArgs = {
             owner: owner.address,
-            init: diamondInit.address,
-            initCalldata: calldataAfterDeploy
+            init: ethers.constants.AddressZero,
+            initCalldata: '0x00'
         };
         const Diamond = await ethers.getContractFactory('Diamond')
         const diamond = await Diamond.deploy(facetCuts, diamondArgs)
@@ -159,6 +141,24 @@ describe("Diamond Global Test", async () => {
         assert.equal(await ownershipFacet.owner(), owner.address);
     });
 
+    // ERC20:
+
+    mocha.step("Деплой контракта который инициализирует значения переменных для функций name(), symbol() и т. д. во время деплоя Diamond", async function() {
+        const DiamondInit = await ethers.getContractFactory('DiamondInit');
+        diamondInit = await DiamondInit.deploy();
+        await diamondInit.deployed();
+    });
+
+    mocha.step("Формирование calldata, которая будет вызвана из Diamond через delegatecall для инициализации переменных, во время деплоя Diamond", async function () {
+        calldataAfterDeploy = diamondInit.interface.encodeFunctionData('initERC20', [
+            name,
+            symbol,
+            decimals,
+            admin.address,
+            totalSupply
+        ]);
+    });
+
     mocha.step("Деплой имплементации с константами", async function () {
         const ConstantsFacet = await ethers.getContractFactory("ConstantsFacet");
         const constantsFacet = await ConstantsFacet.deploy();
@@ -168,7 +168,7 @@ describe("Diamond Global Test", async () => {
             action: FacetCutAction.Add,
             functionSelectors: getSelectors(constantsFacet)
         }];
-        await diamondCutFacet.connect(owner).diamondCut(facetCuts, ethers.constants.AddressZero, "0x00");
+        await diamondCutFacet.connect(owner).diamondCut(facetCuts, diamondInit.address, calldataAfterDeploy);
         facetToAddressImplementation['ConstantsFacet'] = constantsFacet.address;
     });
 
@@ -267,5 +267,14 @@ describe("Diamond Global Test", async () => {
         await supplyRegulatorFacet.connect(admin).burn(user3.address, burnAmount);
         expect(await balancesFacet.balanceOf(user3.address)).to.equal(mintAmount.sub(burnAmount));
         expect(await balancesFacet.totalSupply()).to.be.equal(totalSupply.add(mintAmount).sub(burnAmount));
+    });
+
+    mocha.step("Удаление функции diamondCut для дальнейшей неизменяемости", async function () {
+        const facetCuts = [{
+            facetAddress: ethers.constants.AddressZero,
+            action: FacetCutAction.Remove,
+            functionSelectors: ['0x1f931c1c'] //diamondCut(FacetCut[] calldata _diamondCut, address _init, bytes calldata _calldata)
+        }];
+        await diamondCutFacet.connect(owner).diamondCut(facetCuts, ethers.constants.AddressZero, "0x00");
     });
 });

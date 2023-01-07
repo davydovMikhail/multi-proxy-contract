@@ -3,14 +3,9 @@ pragma solidity ^0.8.0;
 
 import { LibDiamond } from "./libraries/LibDiamond.sol";
 import { IDiamondCut } from "./interfaces/IDiamondCut.sol";
-import { IDiamondLoupe } from  "./interfaces/IDiamondLoupe.sol";
 
-// When no function exists for function called
 error FunctionNotFound(bytes4 _functionSelector);
 
-// This is used in diamond constructor
-// more arguments are added to this struct
-// this avoids stack too deep errors
 struct DiamondArgs {
     address owner;
     address init;
