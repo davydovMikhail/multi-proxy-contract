@@ -56,7 +56,7 @@ describe("Diamond Global Test", async () => {
 
     let facetCuts: FacetCut[] = [];
 
-    // обслуживающие грани и сам Diamond
+    // обслуживающие грани и сам Diamond:
 
     const FacetNames = [
         'DiamondCutFacet',
@@ -143,13 +143,13 @@ describe("Diamond Global Test", async () => {
 
     // ERC20:
 
-    mocha.step("Деплой контракта который инициализирует значения переменных для функций name(), symbol() и т. д. во время деплоя Diamond", async function() {
+    mocha.step("Деплой контракта который инициализирует значения переменных для функций name(), symbol() и т. д. во время вызова функции diamondCut", async function() {
         const DiamondInit = await ethers.getContractFactory('DiamondInit');
         diamondInit = await DiamondInit.deploy();
         await diamondInit.deployed();
     });
 
-    mocha.step("Формирование calldata, которая будет вызвана из Diamond через delegatecall для инициализации переменных, во время деплоя Diamond", async function () {
+    mocha.step("Формирование calldata, которая будет вызвана из Diamond через delegatecall для инициализации переменных, во время вызова функции diamondCut", async function () {
         calldataAfterDeploy = diamondInit.interface.encodeFunctionData('initERC20', [
             name,
             symbol,
